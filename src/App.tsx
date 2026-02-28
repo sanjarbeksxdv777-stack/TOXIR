@@ -4,7 +4,7 @@
  */
 
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
-import { ArrowDown, Instagram, Send, Phone, Play, ExternalLink, ArrowUpRight, Menu, X, Check, ChevronDown, Camera, Video, Monitor, Moon, Sun, Zap, Aperture } from 'lucide-react';
+import { ArrowDown, Instagram, Send, Phone, Play, ExternalLink, ArrowUpRight, Menu, X, Check, ChevronDown, Camera, Video, Monitor, Moon, Sun, Zap, Aperture, Globe, Share2, Download } from 'lucide-react';
 import { useRef, ReactNode, FC, useState, useEffect, FormEvent, MouseEvent } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
@@ -12,123 +12,8 @@ import { db } from './firebase';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
 import LoadingScreen from './components/LoadingScreen';
-
-// --- Interfaces ---
-
-interface SiteContent {
-  heroTitle: string;
-  heroSubtitle: string;
-  heroImage: string;
-  aboutText: string;
-  aboutStats: { val: string; label: string }[];
-  socialLinks: { instagram: string; telegram: string; phone: string };
-  gaId?: string;
-  clients?: string[];
-  sectionTitles: {
-    about: string;
-    portfolio: string;
-    services: string;
-    process: string;
-    testimonials: string;
-    faq: string;
-    contact: string;
-    equipment: string;
-  };
-  uiTexts: {
-    orderBtn: string;
-    viewWorksBtn: string;
-    contactBtn: string;
-    sendBtn: string;
-    footerText: string;
-    contactTitle: string;
-    contactSubtitle: string;
-    noProjectsTitle: string;
-    noProjectsDesc: string;
-  };
-}
-
-interface Service {
-  id: string;
-  title: string;
-  desc: string;
-  price: string;
-  icon: string;
-  image?: string;
-}
-
-interface ProcessStep {
-  id: string;
-  step: string;
-  title: string;
-  desc: string;
-  image?: string;
-}
-
-interface EquipmentItem {
-  id: string;
-  title: string;
-  icon: string;
-  items: string[];
-  image?: string;
-}
-
-interface Testimonial {
-  id: string;
-  name: string;
-  role: string;
-  text: string;
-  image?: string;
-}
-
-interface FAQItem {
-  id: string;
-  q: string;
-  a: string;
-}
-
-// --- Default Data (Fallbacks) ---
-
-const DEFAULT_CONTENT: SiteContent = {
-  heroTitle: "TOHIRJON\nBOLTAYEV",
-  heroSubtitle: "Brendlar va shaxslar uchun premium mobil kontent yaratuvchi videograf.",
-  heroImage: "",
-  aboutText: "Men shunchaki video olmayman, men hissiyotlarni va qadriyatlarni vizual tilga o'giraman. 3 yillik tajriba davomida 50 dan ortiq brendlar bilan ishladim. Mening maqsadim — sizning mahsulotingiz yoki xizmatingizni mijozlar xotirasida qoladigan darajada taqdim etish.",
-  aboutStats: [
-    { val: "3+", label: "Yillik Tajriba" },
-    { val: "100+", label: "Muvaffaqiyatli Loyiha" },
-    { val: "5M+", label: "Umumiy Ko'rishlar" },
-    { val: "24/7", label: "Kreativ Yondashuv" }
-  ],
-  socialLinks: {
-    instagram: "https://instagram.com",
-    telegram: "https://telegram.org",
-    phone: "+998901234567"
-  },
-  clients: ["Samsung", "Pepsi", "Click", "Payme", "Uzum", "Korzinka", "Murad Buildings", "Golden House"],
-  sectionTitles: {
-    about: "Haqida",
-    portfolio: "Ishlar",
-    services: "Xizmatlar",
-    process: "Ish Jarayoni",
-    testimonials: "Mijozlar Fikri",
-    faq: "Ko'p So'raladigan Savollar",
-    contact: "Bog'lanish",
-    equipment: "Ishlatiladigan Texnika"
-  },
-  uiTexts: {
-    orderBtn: "Buyurtma Berish",
-    viewWorksBtn: "Ishlarimni Ko'rish",
-    contactBtn: "Bog'lanish",
-    sendBtn: "Yuborish",
-    footerText: "© 2026 Tohirjon Boltayev. Barcha huquqlar himoyalangan.",
-    contactTitle: "LOYIHANGIZNI\nMUHOKAMA\nQILAMIZMI?",
-    contactSubtitle: "Quyidagi havolalar orqali menga yozing yoki qo'ng'iroq qiling. 24 soat ichida javob beraman.",
-    noProjectsTitle: "Hozircha bu kategoriyada loyihalar yo'q.",
-    noProjectsDesc: "Tez orada yangi ishlar qo'shiladi."
-  }
-};
-
-const CATEGORIES = ["Tijorat", "Reels", "Tadbir", "Mahsulot"];
+import { SiteContent, Service, ProcessStep, EquipmentItem, Testimonial, FAQItem, Project } from './types';
+import { DEFAULT_CONTENT_UZ, DEFAULT_CONTENT_RU, DEFAULT_CONTENT_EN, CATEGORIES, LANGUAGES } from './data';
 
 // --- Components ---
 
@@ -136,7 +21,7 @@ const Cursor = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
-    const mouseMove = (e: MouseEvent) => {
+    const mouseMove = (e: globalThis.MouseEvent) => {
       setMousePosition({ x: e.clientX, y: e.clientY });
     };
 
@@ -240,7 +125,7 @@ const TextReveal = ({ children, className = "" }: { children: string; className?
   );
 };
 
-function Navbar({ darkMode, toggleTheme, onOpenBooking, content }: { darkMode: boolean; toggleTheme: () => void; onOpenBooking: () => void; content: SiteContent }) {
+function Navbar({ darkMode, toggleTheme, onOpenBooking, content, lang, setLang }: { darkMode: boolean; toggleTheme: () => void; onOpenBooking: () => void; content: SiteContent; lang: string; setLang: (l: string) => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeSection, setActiveSection] = useState("");
@@ -264,7 +149,6 @@ function Navbar({ darkMode, toggleTheme, onOpenBooking, content }: { darkMode: b
   }, []);
 
   const links = [
-    { name: content.sectionTitles?.about || "Asosiy", href: "#home" },
     { name: content.sectionTitles?.about || "Haqida", href: "#about" },
     { name: content.sectionTitles?.portfolio || "Ishlar", href: "#portfolio" },
     { name: content.sectionTitles?.services || "Xizmatlar", href: "#services" },
@@ -321,6 +205,18 @@ function Navbar({ darkMode, toggleTheme, onOpenBooking, content }: { darkMode: b
             
             <div className="w-px h-6 bg-zinc-200 dark:bg-zinc-800"></div>
 
+            <div className="flex items-center gap-2">
+              {LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => setLang(l.code)}
+                  className={`text-xs font-bold uppercase ${lang === l.code ? (darkMode ? 'text-white' : 'text-black') : (darkMode ? 'text-zinc-600 hover:text-zinc-400' : 'text-zinc-400 hover:text-zinc-600')}`}
+                >
+                  {l.code}
+                </button>
+              ))}
+            </div>
+
             <button onClick={toggleTheme} className={`p-2 rounded-full transition-colors ${darkMode ? 'bg-zinc-800 text-yellow-400' : 'bg-zinc-100 text-zinc-600'}`}>
               {darkMode ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -364,6 +260,19 @@ function Navbar({ darkMode, toggleTheme, onOpenBooking, content }: { darkMode: b
                 {link.name}
               </a>
             ))}
+            
+            <div className="flex gap-4 mt-4">
+               {LANGUAGES.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => { setLang(l.code); setIsOpen(false); }}
+                  className={`text-lg font-bold uppercase ${lang === l.code ? 'underline' : 'opacity-50'}`}
+                >
+                  {l.code}
+                </button>
+              ))}
+            </div>
+
             <button 
               onClick={() => { setIsOpen(false); onOpenBooking(); }}
               className={`mt-4 px-8 py-4 rounded-full text-lg font-bold ${darkMode ? 'bg-white text-black' : 'bg-black text-white'}`}
@@ -512,9 +421,10 @@ function Home() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [lang, setLang] = useState('uz');
   
   // Dynamic Content State
-  const [content, setContent] = useState<SiteContent>(DEFAULT_CONTENT);
+  const [content, setContent] = useState<SiteContent>(DEFAULT_CONTENT_UZ);
   const [services, setServices] = useState<Service[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [faq, setFaq] = useState<FAQItem[]>([]);
@@ -531,6 +441,16 @@ function Home() {
   const heroY = useTransform(scrollY, [0, 500], [0, 200]);
   const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
 
+  // Language Effect
+  useEffect(() => {
+    switch (lang) {
+      case 'uz': setContent(DEFAULT_CONTENT_UZ); break;
+      case 'ru': setContent(DEFAULT_CONTENT_RU); break;
+      case 'en': setContent(DEFAULT_CONTENT_EN); break;
+      default: setContent(DEFAULT_CONTENT_UZ);
+    }
+  }, [lang]);
+
   // Fetch Data
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 2000);
@@ -541,10 +461,19 @@ function Home() {
       setProjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
-    // Site Content
-    const unsubscribeContent = onSnapshot(doc(db, "site_content", "main"), (doc) => {
+    // Content
+    const contentDocId = lang === 'uz' ? 'main' : lang;
+    const unsubscribeContent = onSnapshot(doc(db, "site_content", contentDocId), (doc) => {
       if (doc.exists()) {
         setContent(doc.data() as SiteContent);
+      } else {
+        // Fallback to default content if DB document doesn't exist
+        switch (lang) {
+          case 'uz': setContent(DEFAULT_CONTENT_UZ); break;
+          case 'ru': setContent(DEFAULT_CONTENT_RU); break;
+          case 'en': setContent(DEFAULT_CONTENT_EN); break;
+          default: setContent(DEFAULT_CONTENT_UZ);
+        }
       }
     });
 
@@ -588,7 +517,7 @@ function Home() {
       unsubscribeProcess();
       unsubscribeEquipment();
     };
-  }, []);
+  }, [lang]);
 
   // Visitor Counter
   useEffect(() => {
@@ -608,31 +537,25 @@ function Home() {
     incrementVisitor();
   }, []);
 
-  // Google Analytics
-  useEffect(() => {
-    if (content.gaId) {
-      // Check if script already exists
-      if (document.querySelector(`script[src*="${content.gaId}"]`)) return;
-
-      const script = document.createElement('script');
-      script.async = true;
-      script.src = `https://www.googletagmanager.com/gtag/js?id=${content.gaId}`;
-      document.head.appendChild(script);
-
-      const script2 = document.createElement('script');
-      script2.innerHTML = `
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-        gtag('config', '${content.gaId}');
-      `;
-      document.head.appendChild(script2);
-    }
-  }, [content.gaId]);
-
   const filteredProjects = activeCategory === "Barchasi" 
     ? projects 
     : projects.filter(p => p.category === activeCategory);
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Tohirjon Boltayev Portfolio',
+          text: 'Check out this amazing portfolio!',
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.log('Error sharing', error);
+      }
+    } else {
+      alert('Sharing not supported on this browser');
+    }
+  };
 
   return (
     <div ref={containerRef} className={`${darkMode ? 'bg-black text-white selection:bg-white selection:text-black' : 'bg-white text-zinc-900 selection:bg-black selection:text-white'} min-h-screen font-sans transition-colors duration-300 overflow-x-hidden`}>
@@ -642,7 +565,7 @@ function Home() {
       <Cursor />
       <div className="bg-noise" />
       <ScrollToTop />
-      <Navbar darkMode={darkMode} toggleTheme={toggleTheme} onOpenBooking={() => setIsBookingOpen(true)} content={content} />
+      <Navbar darkMode={darkMode} toggleTheme={toggleTheme} onOpenBooking={() => setIsBookingOpen(true)} content={content} lang={lang} setLang={setLang} />
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} darkMode={darkMode} />
       
       {/* Progress Bar */}
@@ -676,7 +599,7 @@ function Home() {
               className={`mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border backdrop-blur-sm ${darkMode ? 'border-zinc-800 bg-zinc-900/50' : 'border-zinc-200 bg-zinc-50/50'}`}
             >
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              <span className={`text-xs font-semibold tracking-widest uppercase ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Buyurtmalar uchun ochiq</span>
+              <span className={`text-xs font-semibold tracking-widest uppercase ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Open for Work</span>
             </motion.div>
 
             <motion.h1 
@@ -734,13 +657,22 @@ function Home() {
                 {content.aboutText}
               </TextReveal>
 
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-6 mb-8">
                 {content.aboutStats.map((stat, i) => (
                   <div key={i} className={`p-4 rounded-xl border shadow-sm ${darkMode ? 'bg-zinc-900 border-zinc-800' : 'bg-white border-zinc-100'}`}>
                     <h4 className={`text-3xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-black'}`}>{stat.val}</h4>
                     <p className={`text-xs uppercase font-medium ${darkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>{stat.label}</p>
                   </div>
                 ))}
+              </div>
+
+              <div className="flex gap-4">
+                 <button onClick={() => alert("Resume tez orada yuklanadi!")} className={`flex items-center gap-2 px-6 py-3 rounded-full border text-sm font-bold ${darkMode ? 'border-zinc-700 hover:bg-zinc-800' : 'border-zinc-300 hover:bg-zinc-100'}`}>
+                    <Download size={16} /> Resume
+                 </button>
+                 <button onClick={handleShare} className={`flex items-center gap-2 px-6 py-3 rounded-full border text-sm font-bold ${darkMode ? 'border-zinc-700 hover:bg-zinc-800' : 'border-zinc-300 hover:bg-zinc-100'}`}>
+                    <Share2 size={16} /> Share
+                 </button>
               </div>
             </FadeIn>
             
@@ -750,7 +682,7 @@ function Home() {
                     <Camera size={64} strokeWidth={1} />
                  </div>
                  <img 
-                   src="" 
+                   src="https://picsum.photos/seed/photographer/800/800" 
                    alt="Tohirjon Boltayev" 
                    className="w-full h-full object-cover relative z-10 mix-blend-multiply opacity-80 hover:opacity-100 transition-opacity duration-500"
                    referrerPolicy="no-referrer"
@@ -769,11 +701,21 @@ function Home() {
                   <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
                   {content.sectionTitles?.portfolio || "Portfolio"}
                 </h2>
-                <h3 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-black'}`}>So'nggi Loyihalar</h3>
+                <h3 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-black'}`}>Latest Works</h3>
               </div>
               
               {/* Filter Buttons */}
               <div className="flex flex-wrap gap-2">
+                <button
+                    onClick={() => setActiveCategory("Barchasi")}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                      activeCategory === "Barchasi" 
+                        ? (darkMode ? 'bg-white text-black shadow-lg shadow-white/10' : 'bg-black text-white shadow-lg')
+                        : (darkMode ? 'bg-zinc-900 text-zinc-400 hover:bg-zinc-800' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200')
+                    }`}
+                  >
+                    Barchasi
+                  </button>
                 {CATEGORIES.map(cat => (
                   <button
                     key={cat}
@@ -803,285 +745,98 @@ function Home() {
                       transition={{ duration: 0.4 }}
                       key={project.id}
                       className="group cursor-pointer"
-                      onClick={() => project.videoUrl && window.open(project.videoUrl, '_blank')}
                     >
-                      <div className={`aspect-[4/5] w-full mb-6 overflow-hidden relative rounded-2xl shadow-sm transition-all duration-500 group-hover:shadow-2xl ${darkMode ? 'bg-zinc-900 group-hover:shadow-white/5' : 'bg-zinc-100 group-hover:shadow-zinc-200/50'}`}>
-                         <img 
+                      <div className="relative aspect-video overflow-hidden rounded-2xl mb-4">
+                        <img 
                           src={project.image} 
-                          alt={project.title}
-                          className="w-full h-full object-cover transition-all duration-700 ease-out group-hover:scale-105"
+                          alt={project.title} 
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           referrerPolicy="no-referrer"
                         />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/20 backdrop-blur-[2px]">
-                          <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-xl transform scale-90 group-hover:scale-100 transition-transform duration-300">
-                            <Play className="w-6 h-6 text-black fill-black ml-1" />
-                          </div>
-                        </div>
-                        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1 text-[10px] uppercase tracking-wider font-bold rounded-full shadow-sm text-zinc-900">
-                          {project.category}
+                        <div className="absolute inset-0 bg-black/20 group-hover:bg-black/0 transition-colors duration-500" />
+                        <div className="absolute top-4 right-4 w-10 h-10 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                          <ArrowUpRight className="text-black" size={20} />
                         </div>
                       </div>
-                      
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className={`text-2xl font-bold tracking-tight mb-1 transition-colors ${darkMode ? 'text-white group-hover:text-zinc-400' : 'text-black group-hover:text-zinc-600'}`}>{project.title}</h3>
-                          <p className={`text-sm font-medium ${darkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>{project.description}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-sm font-mono font-bold px-2 py-1 rounded inline-block ${darkMode ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-black'}`}>{project.stats}</p>
-                        </div>
-                      </div>
-                      
-                      {/* Video URL Display */}
-                      {project.videoUrl && (
-                        <div 
-                          className={`text-xs flex items-center gap-1 hover:underline ${darkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-400 hover:text-zinc-600'}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(project.videoUrl, '_blank');
-                          }}
-                        >
-                          <Video size={12} />
-                          {project.videoUrl}
-                        </div>
-                      )}
+                      <h4 className={`text-2xl font-bold mb-1 ${darkMode ? 'text-white' : 'text-black'}`}>{project.title}</h4>
+                      <p className={`text-sm font-medium ${darkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>{project.category}</p>
                     </motion.div>
                   ))
                 ) : (
                   <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className={`col-span-full py-20 text-center ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}
+                    className="col-span-2 py-24 text-center border border-dashed rounded-3xl border-zinc-200 dark:border-zinc-800"
                   >
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-dashed flex items-center justify-center opacity-50 border-current">
-                      <Video size={32} />
-                    </div>
-                    <p className="text-lg font-medium">{content.uiTexts?.noProjectsTitle || "Hozircha bu kategoriyada loyihalar yo'q."}</p>
-                    <p className="text-sm mt-2">{content.uiTexts?.noProjectsDesc || "Tez orada yangi ishlar qo'shiladi."}</p>
+                    <p className={`text-lg ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>{content.uiTexts?.noProjectsTitle}</p>
+                    <p className={`text-sm ${darkMode ? 'text-zinc-600' : 'text-zinc-500'}`}>{content.uiTexts?.noProjectsDesc}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
         </div>
 
-        {/* Equipment Section (New) */}
-        <Section className={darkMode ? 'bg-zinc-900/50' : 'bg-zinc-50'}>
-          <FadeIn>
-            <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-16 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-              <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              {content.sectionTitles?.equipment || "Ishlatiladigan Texnika"}
-            </h2>
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {equipment.map((item, i) => (
-                <div key={i} className={`p-6 rounded-2xl border ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-100'}`}>
-                  {item.image && (
-                    <div className="mb-6 rounded-xl overflow-hidden aspect-video">
-                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
-                  )}
-                  <div className={`mb-4 p-3 rounded-xl inline-block ${darkMode ? 'bg-zinc-900 text-white' : 'bg-zinc-50 text-black'}`}>
-                    {getIcon(item.icon)}
-                  </div>
-                  <h3 className={`text-lg font-bold mb-4 ${darkMode ? 'text-white' : 'text-black'}`}>{item.title}</h3>
-                  <ul className="space-y-2">
-                    {item.items.map((sub, j) => (
-                      <li key={j} className={`text-sm flex items-center gap-2 ${darkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                        <span className="w-1 h-1 bg-green-500 rounded-full"></span>
-                        {sub}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-        </Section>
-
-        {/* 4. Process Section */}
-        <Section id="process" className={`${darkMode ? 'bg-black' : 'bg-zinc-950'} text-white`}>
-          <FadeIn>
-            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 mb-16 flex items-center gap-2">
-              <span className="w-8 h-[1px] bg-zinc-700"></span>
-              {content.sectionTitles?.process || "Ish Jarayoni"}
-            </h2>
-            
-            <div className="grid md:grid-cols-4 gap-8">
-              {process.map((step, index) => (
-                <div key={index} className="relative group">
-                  {step.image && (
-                    <div className="mb-6 rounded-2xl overflow-hidden aspect-[4/3] relative">
-                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500" />
-                      <img src={step.image} alt={step.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
-                  )}
-                  <div className="text-6xl font-black text-zinc-800 mb-4 opacity-50">{step.step}</div>
-                  <h3 className="text-xl font-bold mb-2 text-white">{step.title}</h3>
-                  <p className="text-zinc-400 text-sm leading-relaxed">{step.desc}</p>
-                  {index !== process.length - 1 && (
-                    <div className="hidden md:block absolute top-8 right-0 w-full h-[1px] bg-gradient-to-r from-zinc-800 to-transparent translate-x-1/2 -z-10"></div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-        </Section>
-
-        {/* 5. Services Section (Enhanced) */}
-        <Section id="services" className={darkMode ? 'bg-zinc-900/30' : 'bg-zinc-50'}>
+        {/* 4. Services Section */}
+        <Section id="services" className={darkMode ? 'bg-zinc-900/30' : 'bg-zinc-50/50'}>
           <FadeIn>
             <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-16 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
               <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
               {content.sectionTitles?.services || "Xizmatlar"}
             </h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              {services.map((service, index) => (
-                <div key={index} className={`group p-8 rounded-2xl border transition-all duration-300 hover:shadow-xl cursor-default flex flex-col justify-between overflow-hidden relative ${darkMode ? 'bg-black border-zinc-800 hover:border-white' : 'bg-white border-zinc-100 hover:border-black'}`}>
-                  {service.image && (
-                    <div className="absolute inset-0 z-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500">
-                      <img src={service.image} alt={service.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
-                  )}
-                  <div className="relative z-10">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className={`p-3 rounded-xl transition-colors duration-300 ${darkMode ? 'bg-zinc-900 text-white group-hover:bg-white group-hover:text-black' : 'bg-zinc-50 text-black group-hover:bg-black group-hover:text-white'}`}>
-                        {getIcon(service.icon)}
-                      </div>
-                      <ArrowUpRight className={`w-5 h-5 transition-colors duration-300 ${darkMode ? 'text-zinc-600 group-hover:text-white' : 'text-zinc-300 group-hover:text-black'}`} />
-                    </div>
-                    <h3 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{service.title}</h3>
-                    <p className={`mb-6 leading-relaxed ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{service.desc}</p>
-                  </div>
-                  <div className={`pt-6 border-t relative z-10 ${darkMode ? 'border-zinc-900' : 'border-zinc-50'}`}>
-                    <p className={`text-sm font-medium ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Narx: <span className={`font-bold ${darkMode ? 'text-white' : 'text-black'}`}>{service.price}</span></p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-        </Section>
-
-        {/* 6. Testimonials (New) */}
-        <Section className={darkMode ? 'bg-black' : 'bg-white'}>
-          <FadeIn>
-            <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-16 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-              <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              {content.sectionTitles?.testimonials || "Mijozlar Fikri"}
-            </h2>
-            <div className="grid md:grid-cols-2 gap-8">
-              {testimonials.map((t, i) => (
-                <div key={i} className={`p-8 rounded-2xl relative ${darkMode ? 'bg-zinc-900' : 'bg-zinc-50'}`}>
-                  <div className={`text-4xl font-serif absolute top-4 left-6 ${darkMode ? 'text-zinc-700' : 'text-zinc-300'}`}>"</div>
-                  <p className={`text-lg italic mb-6 relative z-10 pt-4 ${darkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>{t.text}</p>
-                  <div className="flex items-center gap-4">
-                    {t.image ? (
-                      <img src={t.image} alt={t.name} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className={`w-10 h-10 rounded-full ${darkMode ? 'bg-zinc-800' : 'bg-zinc-200'}`}></div>
-                    )}
-                    <div>
-                      <h4 className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-black'}`}>{t.name}</h4>
-                      <p className={`text-xs ${darkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>{t.role}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </FadeIn>
-        </Section>
-
-        {/* 7. FAQ (New) */}
-        <Section className={darkMode ? 'bg-zinc-900/30' : 'bg-zinc-50'}>
-          <FadeIn>
-            <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-12 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-              <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              {content.sectionTitles?.faq || "Ko'p So'raladigan Savollar"}
-            </h2>
-            <div className="max-w-2xl mx-auto space-y-4">
-              {faq.map((item, i) => (
-                <details key={i} className={`group rounded-xl border overflow-hidden ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200'}`}>
-                  <summary className={`flex justify-between items-center p-6 cursor-pointer list-none font-medium text-lg transition-colors ${darkMode ? 'text-white hover:bg-zinc-900' : 'text-black hover:bg-zinc-50'}`}>
-                    {item.q}
-                    <ChevronDown className={`w-5 h-5 transition-transform group-open:rotate-180 ${darkMode ? 'text-zinc-600' : 'text-zinc-400'}`} />
-                  </summary>
-                  <div className={`px-6 pb-6 leading-relaxed ${darkMode ? 'text-zinc-400' : 'text-zinc-600'}`}>
-                    {item.a}
-                  </div>
-                </details>
-              ))}
-            </div>
-          </FadeIn>
-        </Section>
-
-        {/* 8. Contact Section */}
-        <Section id="contact" className={`pb-12 ${darkMode ? 'bg-black' : 'bg-white'}`}>
-          <FadeIn>
-            <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-12 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
-              <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              {content.sectionTitles?.contact || "Bog'lanish"}
-            </h2>
             
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <h3 className={`text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] mb-8 ${darkMode ? 'text-white' : 'text-black'} whitespace-pre-line`}>
-                  {content.uiTexts?.contactTitle || "LOYIHANGIZNI\nMUHOKAMA\nQILAMIZMI?"}
-                </h3>
-                <p className={`text-xl mb-8 max-w-md ${darkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>
-                  {content.uiTexts?.contactSubtitle || "Quyidagi havolalar orqali menga yozing yoki qo'ng'iroq qiling. 24 soat ichida javob beraman."}
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                <a href={content.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-between p-6 border rounded-2xl transition-all duration-300 group shadow-sm hover:shadow-xl ${darkMode ? 'border-zinc-800 hover:bg-white hover:text-black hover:border-white' : 'border-zinc-200 hover:bg-black hover:text-white hover:border-black'}`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-full transition-colors ${darkMode ? 'bg-zinc-900 group-hover:bg-black/10' : 'bg-zinc-100 group-hover:bg-white/20'}`}>
-                      <Instagram className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <span className={`text-sm block ${darkMode ? 'text-zinc-500 group-hover:text-zinc-500' : 'text-zinc-500 group-hover:text-zinc-400'}`}>Instagram</span>
-                      <span className="text-xl font-bold">@tohirjonboltayev</span>
-                    </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              {services.length > 0 ? services.map((service, i) => (
+                <div key={service.id} className={`p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-2 ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100 hover:shadow-xl'}`}>
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-6 ${darkMode ? 'bg-zinc-800 text-white' : 'bg-zinc-100 text-black'}`}>
+                    {getIcon(service.icon)}
                   </div>
-                  <ExternalLink className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" />
-                </a>
-                
-                <a href={content.socialLinks.telegram} target="_blank" rel="noopener noreferrer" className={`flex items-center justify-between p-6 border rounded-2xl transition-all duration-300 group shadow-sm hover:shadow-xl ${darkMode ? 'border-zinc-800 hover:bg-[#229ED9] hover:text-white hover:border-[#229ED9]' : 'border-zinc-200 hover:bg-[#229ED9] hover:text-white hover:border-[#229ED9]'}`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-full transition-colors ${darkMode ? 'bg-zinc-900 group-hover:bg-white/20' : 'bg-zinc-100 group-hover:bg-white/20'}`}>
-                      <Send className="w-6 h-6" />
+                  <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-black'}`}>{service.title}</h3>
+                  <p className={`text-sm leading-relaxed mb-8 ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{service.desc}</p>
+                  <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-black'}`}>{service.price}</div>
+                </div>
+              )) : (
+                // Fallback Services
+                [1, 2, 3].map(i => (
+                   <div key={i} className={`p-8 rounded-3xl border transition-all duration-300 hover:-translate-y-2 ${darkMode ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' : 'bg-white border-zinc-100 hover:shadow-xl'}`}>
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-6 ${darkMode ? 'bg-zinc-800 text-white' : 'bg-zinc-100 text-black'}`}>
+                      <Video size={24} />
                     </div>
-                    <div>
-                      <span className={`text-sm block ${darkMode ? 'text-zinc-500 group-hover:text-zinc-200' : 'text-zinc-500 group-hover:text-zinc-200'}`}>Telegram</span>
-                      <span className="text-xl font-bold">@tohirjonboltayev</span>
-                    </div>
+                    <h3 className={`text-xl font-bold mb-4 ${darkMode ? 'text-white' : 'text-black'}`}>Service {i}</h3>
+                    <p className={`text-sm leading-relaxed mb-8 ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>Professional video production service description goes here.</p>
+                    <div className={`text-lg font-bold ${darkMode ? 'text-white' : 'text-black'}`}>Start from $100</div>
                   </div>
-                  <ExternalLink className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" />
-                </a>
-                
-                <a href={`tel:${content.socialLinks.phone}`} className={`flex items-center justify-between p-6 border rounded-2xl transition-all duration-300 group shadow-sm hover:shadow-xl ${darkMode ? 'border-zinc-800 hover:bg-green-600 hover:text-white hover:border-green-600' : 'border-zinc-200 hover:bg-green-600 hover:text-white hover:border-green-600'}`}>
-                  <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-full transition-colors ${darkMode ? 'bg-zinc-900 group-hover:bg-white/20' : 'bg-zinc-100 group-hover:bg-white/20'}`}>
-                      <Phone className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <span className={`text-sm block ${darkMode ? 'text-zinc-500 group-hover:text-zinc-200' : 'text-zinc-500 group-hover:text-zinc-200'}`}>Telefon</span>
-                      <span className="text-xl font-bold">{content.socialLinks.phone}</span>
-                    </div>
-                  </div>
-                  <ExternalLink className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity" />
-                </a>
-              </div>
-            </div>
-
-            <div className={`mt-32 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] uppercase tracking-widest font-bold ${darkMode ? 'border-zinc-800 text-zinc-600' : 'border-zinc-100 text-zinc-400'}`}>
-              <span>{content.uiTexts?.footerText || "© 2026 Tohirjon Boltayev. Barcha huquqlar himoyalangan."}</span>
-              <div className="flex gap-4 items-center">
-                <a href="#" className={darkMode ? 'hover:text-white' : 'hover:text-black'}>Maxfiylik siyosati</a>
-                <a href="#" className={darkMode ? 'hover:text-white' : 'hover:text-black'}>Foydalanish shartlari</a>
-                <a href="/login" className={`px-2 py-1 rounded border transition-colors ${darkMode ? 'border-zinc-800 hover:bg-zinc-800 hover:text-white' : 'border-zinc-200 hover:bg-zinc-100 hover:text-black'}`}>Admin</a>
-              </div>
+                ))
+              )}
             </div>
           </FadeIn>
         </Section>
+
+        {/* 5. Footer */}
+        <footer className={`py-24 px-6 border-t ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-100'}`}>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12">
+            <div>
+              <h2 className={`text-6xl md:text-8xl font-black tracking-tighter mb-8 ${darkMode ? 'text-white' : 'text-black'}`}>
+                {content.uiTexts?.contactTitle}
+              </h2>
+              <div className="flex gap-4">
+                <a href={content.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className={`p-4 rounded-full border transition-colors ${darkMode ? 'border-zinc-800 hover:bg-zinc-900 text-white' : 'border-zinc-200 hover:bg-zinc-50 text-black'}`}>
+                  <Instagram />
+                </a>
+                <a href={content.socialLinks.telegram} target="_blank" rel="noopener noreferrer" className={`p-4 rounded-full border transition-colors ${darkMode ? 'border-zinc-800 hover:bg-zinc-900 text-white' : 'border-zinc-200 hover:bg-zinc-50 text-black'}`}>
+                  <Send />
+                </a>
+                <a href={`tel:${content.socialLinks.phone}`} className={`p-4 rounded-full border transition-colors ${darkMode ? 'border-zinc-800 hover:bg-zinc-900 text-white' : 'border-zinc-200 hover:bg-zinc-50 text-black'}`}>
+                  <Phone />
+                </a>
+              </div>
+            </div>
+            
+            <div className="text-right">
+              <p className={`text-sm mb-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>{content.uiTexts?.footerText}</p>
+              <p className={`text-xs ${darkMode ? 'text-zinc-600' : 'text-zinc-500'}`}>Designed & Developed with ❤️</p>
+            </div>
+          </div>
+        </footer>
 
       </div>
     </div>
@@ -1097,4 +852,3 @@ export default function App() {
     </Routes>
   );
 }
-

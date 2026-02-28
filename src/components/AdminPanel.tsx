@@ -45,6 +45,7 @@ interface SiteContent {
     faq: string;
     contact: string;
     equipment: string;
+    skills: string;
   };
   uiTexts: {
     orderBtn: string;
@@ -57,6 +58,7 @@ interface SiteContent {
     noProjectsTitle: string;
     noProjectsDesc: string;
   };
+  skills: string[];
 }
 
 interface Service {
@@ -354,7 +356,8 @@ export default function AdminPanel() {
             testimonials: "Mijozlar Fikri",
             faq: "Ko'p So'raladigan Savollar",
             contact: "Bog'lanish",
-            equipment: "Ishlatiladigan Texnika"
+            equipment: "Ishlatiladigan Texnika",
+            skills: "Ko'nikmalar"
           },
           uiTexts: {
             orderBtn: "Buyurtma Berish",
@@ -366,7 +369,8 @@ export default function AdminPanel() {
             contactSubtitle: "Quyidagi havolalar orqali menga yozing yoki qo'ng'iroq qiling. 24 soat ichida javob beraman.",
             noProjectsTitle: "Hozircha bu kategoriyada loyihalar yo'q.",
             noProjectsDesc: "Tez orada yangi ishlar qo'shiladi."
-          }
+          },
+          skills: ["DaVinci Resolve", "Adobe Premiere Pro", "After Effects", "Sound Design", "Color Grading", "Storytelling"]
         });
       }
     });
@@ -903,6 +907,20 @@ export default function AdminPanel() {
                         />
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                {/* Skills */}
+                <div className="space-y-6 pt-8 border-t border-zinc-800">
+                  <h3 className="text-xl font-bold flex items-center gap-2"><Settings size={20} /> Ko'nikmalar</h3>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Ko'nikmalar (Vergul bilan ajrating)</label>
+                    <textarea
+                      value={content.skills ? content.skills.join(', ') : ''}
+                      onChange={e => setContent({...content, skills: e.target.value.split(',').map(c => c.trim())})}
+                      className="w-full p-4 bg-black border border-zinc-800 rounded-xl focus:border-white outline-none transition-colors h-24 resize-none"
+                      placeholder="DaVinci Resolve, Premiere Pro, After Effects..."
+                    />
                   </div>
                 </div>
 
