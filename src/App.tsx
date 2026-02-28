@@ -833,7 +833,7 @@ function Home() {
             
             <div className="text-right">
               <p className={`text-sm mb-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>{content.uiTexts?.footerText}</p>
-              <p className={`text-xs ${darkMode ? 'text-zinc-600' : 'text-zinc-500'}`}>Designed & Developed with ❤️</p>
+              <p className={`text-xs ${darkMode ? 'text-zinc-600' : 'text-zinc-500'}`}>Designed & Developed with Sanjrbek Otabekov</p>
             </div>
           </div>
         </footer>
