@@ -682,7 +682,7 @@ function Home() {
                     <Camera size={64} strokeWidth={1} />
                  </div>
                  <img 
-                   src="https://picsum.photos/seed/photographer/800/800" 
+                   src="" 
                    alt="Tohirjon Boltayev" 
                    className="w-full h-full object-cover relative z-10 mix-blend-multiply opacity-80 hover:opacity-100 transition-opacity duration-500"
                    referrerPolicy="no-referrer"
