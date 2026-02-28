@@ -31,10 +31,32 @@ interface SiteContent {
   heroSubtitle: string;
   heroImage: string;
   aboutText: string;
+  aboutImage: string;
   aboutStats: { val: string; label: string }[];
   socialLinks: { instagram: string; telegram: string; phone: string };
   gaId?: string;
   clients: string[];
+  sectionTitles: {
+    about: string;
+    portfolio: string;
+    services: string;
+    process: string;
+    testimonials: string;
+    faq: string;
+    contact: string;
+    equipment: string;
+  };
+  uiTexts: {
+    orderBtn: string;
+    viewWorksBtn: string;
+    contactBtn: string;
+    sendBtn: string;
+    footerText: string;
+    contactTitle: string;
+    contactSubtitle: string;
+    noProjectsTitle: string;
+    noProjectsDesc: string;
+  };
 }
 
 interface Service {
@@ -43,6 +65,7 @@ interface Service {
   desc: string;
   price: string;
   icon: string;
+  image: string;
 }
 
 interface ProcessStep {
@@ -50,6 +73,7 @@ interface ProcessStep {
   step: string;
   title: string;
   desc: string;
+  image: string;
 }
 
 interface EquipmentItem {
@@ -57,6 +81,7 @@ interface EquipmentItem {
   title: string;
   icon: string;
   items: string[];
+  image: string;
 }
 
 interface Testimonial {
@@ -64,6 +89,7 @@ interface Testimonial {
   name: string;
   role: string;
   text: string;
+  image: string;
 }
 
 interface FAQItem {
@@ -311,6 +337,7 @@ export default function AdminPanel() {
           heroSubtitle: "Brendlar va shaxslar uchun premium mobil kontent yaratuvchi videograf.",
           heroImage: "",
           aboutText: "Men shunchaki video olmayman...",
+          aboutImage: "",
           aboutStats: [
             { val: "3+", label: "Yillik Tajriba" },
             { val: "100+", label: "Muvaffaqiyatli Loyiha" },
@@ -318,7 +345,28 @@ export default function AdminPanel() {
             { val: "24/7", label: "Kreativ Yondashuv" }
           ],
           socialLinks: { instagram: "", telegram: "", phone: "" },
-          clients: ["Samsung", "Pepsi", "Click", "Payme", "Uzum", "Korzinka", "Murad Buildings", "Golden House"]
+          clients: ["Samsung", "Pepsi", "Click", "Payme", "Uzum", "Korzinka", "Murad Buildings", "Golden House"],
+          sectionTitles: {
+            about: "Haqida",
+            portfolio: "Ishlar",
+            services: "Xizmatlar",
+            process: "Ish Jarayoni",
+            testimonials: "Mijozlar Fikri",
+            faq: "Ko'p So'raladigan Savollar",
+            contact: "Bog'lanish",
+            equipment: "Ishlatiladigan Texnika"
+          },
+          uiTexts: {
+            orderBtn: "Buyurtma Berish",
+            viewWorksBtn: "Ishlarimni Ko'rish",
+            contactBtn: "Bog'lanish",
+            sendBtn: "Yuborish",
+            footerText: "© 2026 Tohirjon Boltayev. Barcha huquqlar himoyalangan.",
+            contactTitle: "LOYIHANGIZNI\nMUHOKAMA\nQILAMIZMI?",
+            contactSubtitle: "Quyidagi havolalar orqali menga yozing yoki qo'ng'iroq qiling. 24 soat ichida javob beraman.",
+            noProjectsTitle: "Hozircha bu kategoriyada loyihalar yo'q.",
+            noProjectsDesc: "Tez orada yangi ishlar qo'shiladi."
+          }
         });
       }
     });
@@ -387,13 +435,12 @@ export default function AdminPanel() {
     setToast({ message, type });
   };
 
-  const handleImageUpload = async (file: File) => {
-    if (!file) return;
-
+  const uploadImage = async (file: File): Promise<string | null> => {
+    if (!file) return null;
     const apiKey = import.meta.env.VITE_IMGBB_API_KEY;
     if (!apiKey) {
-      showToast("IMGBB API kaliti topilmadi (.env faylini tekshiring)", 'error');
-      return;
+      showToast("IMGBB API kaliti topilmadi", 'error');
+      return null;
     }
 
     setUploadingImage(true);
@@ -405,25 +452,30 @@ export default function AdminPanel() {
         method: 'POST',
         body: formData,
       });
-
       const data = await response.json();
-
       if (data.success) {
-        const imageUrl = data.data.url;
-        if (isAdding) {
-          setNewProject(prev => ({ ...prev, image: imageUrl }));
-        } else if (isEditing) {
-          setIsEditing(prev => ({ ...prev!, image: imageUrl }));
-        }
-        showToast("Rasm muvaffaqiyatli yuklandi!", 'success');
+        return data.data.url;
       } else {
-        showToast("Rasm yuklashda xatolik: " + (data.error?.message || "Noma'lum xatolik"), 'error');
+        showToast("Rasm yuklashda xatolik", 'error');
+        return null;
       }
     } catch (error) {
-      console.error("Upload error:", error);
       showToast("Serverga ulanishda xatolik", 'error');
+      return null;
     } finally {
       setUploadingImage(false);
+    }
+  };
+
+  const handleImageUpload = async (file: File) => {
+    const url = await uploadImage(file);
+    if (url) {
+      if (isAdding) {
+        setNewProject(prev => ({ ...prev, image: url }));
+      } else if (isEditing) {
+        setIsEditing(prev => ({ ...prev!, image: url }));
+      }
+      showToast("Rasm muvaffaqiyatli yuklandi!", 'success');
     }
   };
 
@@ -500,35 +552,18 @@ export default function AdminPanel() {
   };
 
   const handleHeroImageUpload = async (file: File) => {
-    if (!file) return;
-    const apiKey = import.meta.env.VITE_IMGBB_API_KEY;
-    if (!apiKey) {
-      showToast("IMGBB API kaliti topilmadi", 'error');
-      return;
+    const url = await uploadImage(file);
+    if (url) {
+      setContent(prev => prev ? ({ ...prev, heroImage: url }) : null);
+      showToast("Rasm muvaffaqiyatli yuklandi!", 'success');
     }
+  };
 
-    setUploadingImage(true);
-    const formData = new FormData();
-    formData.append('image', file);
-
-    try {
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setContent(prev => prev ? ({ ...prev, heroImage: data.data.url }) : null);
-        showToast("Rasm muvaffaqiyatli yuklandi!", 'success');
-      } else {
-        showToast("Rasm yuklashda xatolik", 'error');
-      }
-    } catch (error) {
-      showToast("Serverga ulanishda xatolik", 'error');
-    } finally {
-      setUploadingImage(false);
+  const handleAboutImageUpload = async (file: File) => {
+    const url = await uploadImage(file);
+    if (url) {
+      setContent(prev => prev ? ({ ...prev, aboutImage: url }) : null);
+      showToast("Rasm muvaffaqiyatli yuklandi!", 'success');
     }
   };
 
@@ -828,6 +863,46 @@ export default function AdminPanel() {
                          placeholder="Samsung, Pepsi, Click..."
                        />
                     </div>
+                  </div>
+                </div>
+
+                {/* Section Titles */}
+                <div className="space-y-6 pt-8 border-t border-zinc-800">
+                  <h3 className="text-xl font-bold flex items-center gap-2"><LayoutGrid size={20} /> Bo'lim Sarlavhalari</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {Object.entries(content.sectionTitles || {}).map(([key, value]) => (
+                      <div key={key} className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">{key}</label>
+                        <input 
+                          value={value} 
+                          onChange={e => setContent({
+                            ...content, 
+                            sectionTitles: { ...content.sectionTitles, [key]: e.target.value }
+                          })} 
+                          className="w-full p-4 bg-black border border-zinc-800 rounded-xl focus:border-white outline-none transition-colors"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* UI Texts */}
+                <div className="space-y-6 pt-8 border-t border-zinc-800">
+                  <h3 className="text-xl font-bold flex items-center gap-2"><MessageSquare size={20} /> Sayt Matnlari va Tugmalar</h3>
+                  <div className="grid md:grid-cols-2 gap-6">
+                    {Object.entries(content.uiTexts || {}).map(([key, value]) => (
+                      <div key={key} className="space-y-2">
+                        <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">{key}</label>
+                        <input 
+                          value={value} 
+                          onChange={e => setContent({
+                            ...content, 
+                            uiTexts: { ...content.uiTexts, [key]: e.target.value }
+                          })} 
+                          className="w-full p-4 bg-black border border-zinc-800 rounded-xl focus:border-white outline-none transition-colors"
+                        />
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1215,6 +1290,33 @@ export default function AdminPanel() {
                         </select>
                       </div>
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Rasm</label>
+                      <div className="relative border-2 border-dashed rounded-xl p-4 text-center border-zinc-800 bg-black hover:border-zinc-600 transition-colors">
+                        <input type="file" id="service-image-upload" className="hidden" accept="image/*" onChange={async (e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const url = await uploadImage(e.target.files[0]);
+                            if (url) {
+                              if (isAdding) setNewService(prev => ({ ...prev, image: url }));
+                              else setEditingService(prev => ({ ...prev!, image: url }));
+                              showToast("Rasm yuklandi", 'success');
+                            }
+                          }
+                        }} disabled={uploadingImage} />
+                        {(isAdding ? newService.image : editingService?.image) ? (
+                          <div className="relative w-full aspect-video rounded-lg overflow-hidden group">
+                            <img src={isAdding ? newService.image : editingService?.image} alt="Preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3">
+                              <label htmlFor="service-image-upload" className="cursor-pointer px-4 py-2 bg-white text-black rounded-lg font-bold hover:bg-zinc-200 transition-colors flex items-center gap-2"><Edit2 size={16} /> O'zgartirish</label>
+                            </div>
+                          </div>
+                        ) : (
+                          <label htmlFor="service-image-upload" className="cursor-pointer flex flex-col items-center justify-center gap-4 py-8">
+                            {uploadingImage ? <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Image size={32} className="text-zinc-600" /><span className="text-zinc-500 text-sm">Rasm yuklash</span></>}
+                          </label>
+                        )}
+                      </div>
+                    </div>
                     <button type="submit" className="w-full py-4 bg-white text-black font-bold text-lg rounded-xl hover:bg-zinc-200 transition-colors mt-4">{isAdding ? "Qo'shish" : "Saqlash"}</button>
                   </form>
                 </>
@@ -1235,6 +1337,33 @@ export default function AdminPanel() {
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Fikr Matni</label>
                       <textarea required value={isAdding ? newTestimonial.text : editingTestimonial?.text} onChange={e => isAdding ? setNewTestimonial({...newTestimonial, text: e.target.value}) : setEditingTestimonial({...editingTestimonial!, text: e.target.value})} className="w-full p-4 bg-black border border-zinc-800 rounded-xl focus:border-white outline-none transition-colors h-32 resize-none" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Rasm (Avatar)</label>
+                      <div className="relative border-2 border-dashed rounded-xl p-4 text-center border-zinc-800 bg-black hover:border-zinc-600 transition-colors">
+                        <input type="file" id="testimonial-image-upload" className="hidden" accept="image/*" onChange={async (e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const url = await uploadImage(e.target.files[0]);
+                            if (url) {
+                              if (isAdding) setNewTestimonial(prev => ({ ...prev, image: url }));
+                              else setEditingTestimonial(prev => ({ ...prev!, image: url }));
+                              showToast("Rasm yuklandi", 'success');
+                            }
+                          }
+                        }} disabled={uploadingImage} />
+                        {(isAdding ? newTestimonial.image : editingTestimonial?.image) ? (
+                          <div className="relative w-24 h-24 mx-auto rounded-full overflow-hidden group">
+                            <img src={isAdding ? newTestimonial.image : editingTestimonial?.image} alt="Preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3">
+                              <label htmlFor="testimonial-image-upload" className="cursor-pointer p-2 bg-white text-black rounded-full hover:bg-zinc-200 transition-colors"><Edit2 size={16} /></label>
+                            </div>
+                          </div>
+                        ) : (
+                          <label htmlFor="testimonial-image-upload" className="cursor-pointer flex flex-col items-center justify-center gap-4 py-8">
+                            {uploadingImage ? <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Image size={32} className="text-zinc-600" /><span className="text-zinc-500 text-sm">Rasm yuklash</span></>}
+                          </label>
+                        )}
+                      </div>
                     </div>
                     <button type="submit" className="w-full py-4 bg-white text-black font-bold text-lg rounded-xl hover:bg-zinc-200 transition-colors mt-4">{isAdding ? "Qo'shish" : "Saqlash"}</button>
                   </form>
@@ -1274,6 +1403,33 @@ export default function AdminPanel() {
                       <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Tavsif</label>
                       <textarea required value={isAdding ? newProcess.desc : editingProcess?.desc} onChange={e => isAdding ? setNewProcess({...newProcess, desc: e.target.value}) : setEditingProcess({...editingProcess!, desc: e.target.value})} className="w-full p-4 bg-black border border-zinc-800 rounded-xl focus:border-white outline-none transition-colors h-32 resize-none" />
                     </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Rasm</label>
+                      <div className="relative border-2 border-dashed rounded-xl p-4 text-center border-zinc-800 bg-black hover:border-zinc-600 transition-colors">
+                        <input type="file" id="process-image-upload" className="hidden" accept="image/*" onChange={async (e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const url = await uploadImage(e.target.files[0]);
+                            if (url) {
+                              if (isAdding) setNewProcess(prev => ({ ...prev, image: url }));
+                              else setEditingProcess(prev => ({ ...prev!, image: url }));
+                              showToast("Rasm yuklandi", 'success');
+                            }
+                          }
+                        }} disabled={uploadingImage} />
+                        {(isAdding ? newProcess.image : editingProcess?.image) ? (
+                          <div className="relative w-full aspect-video rounded-lg overflow-hidden group">
+                            <img src={isAdding ? newProcess.image : editingProcess?.image} alt="Preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3">
+                              <label htmlFor="process-image-upload" className="cursor-pointer px-4 py-2 bg-white text-black rounded-lg font-bold hover:bg-zinc-200 transition-colors flex items-center gap-2"><Edit2 size={16} /> O'zgartirish</label>
+                            </div>
+                          </div>
+                        ) : (
+                          <label htmlFor="process-image-upload" className="cursor-pointer flex flex-col items-center justify-center gap-4 py-8">
+                            {uploadingImage ? <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Image size={32} className="text-zinc-600" /><span className="text-zinc-500 text-sm">Rasm yuklash</span></>}
+                          </label>
+                        )}
+                      </div>
+                    </div>
                     <button type="submit" className="w-full py-4 bg-white text-black font-bold text-lg rounded-xl hover:bg-zinc-200 transition-colors mt-4">{isAdding ? "Qo'shish" : "Saqlash"}</button>
                   </form>
                 </>
@@ -1290,6 +1446,33 @@ export default function AdminPanel() {
                     <div className="space-y-2">
                       <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Texnikalar (Vergul bilan ajrating)</label>
                       <textarea required value={equipmentItemsInput} onChange={e => setEquipmentItemsInput(e.target.value)} className="w-full p-4 bg-black border border-zinc-800 rounded-xl focus:border-white outline-none transition-colors h-32 resize-none" placeholder="Sony A7S III, DJI Ronin..." />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Rasm</label>
+                      <div className="relative border-2 border-dashed rounded-xl p-4 text-center border-zinc-800 bg-black hover:border-zinc-600 transition-colors">
+                        <input type="file" id="equipment-image-upload" className="hidden" accept="image/*" onChange={async (e) => {
+                          if (e.target.files && e.target.files[0]) {
+                            const url = await uploadImage(e.target.files[0]);
+                            if (url) {
+                              if (isAdding) setNewEquipment(prev => ({ ...prev, image: url }));
+                              else setEditingEquipment(prev => ({ ...prev!, image: url }));
+                              showToast("Rasm yuklandi", 'success');
+                            }
+                          }
+                        }} disabled={uploadingImage} />
+                        {(isAdding ? newEquipment.image : editingEquipment?.image) ? (
+                          <div className="relative w-full aspect-video rounded-lg overflow-hidden group">
+                            <img src={isAdding ? newEquipment.image : editingEquipment?.image} alt="Preview" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-3">
+                              <label htmlFor="equipment-image-upload" className="cursor-pointer px-4 py-2 bg-white text-black rounded-lg font-bold hover:bg-zinc-200 transition-colors flex items-center gap-2"><Edit2 size={16} /> O'zgartirish</label>
+                            </div>
+                          </div>
+                        ) : (
+                          <label htmlFor="equipment-image-upload" className="cursor-pointer flex flex-col items-center justify-center gap-4 py-8">
+                            {uploadingImage ? <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <><Image size={32} className="text-zinc-600" /><span className="text-zinc-500 text-sm">Rasm yuklash</span></>}
+                          </label>
+                        )}
+                      </div>
                     </div>
                     <button type="submit" className="w-full py-4 bg-white text-black font-bold text-lg rounded-xl hover:bg-zinc-200 transition-colors mt-4">{isAdding ? "Qo'shish" : "Saqlash"}</button>
                   </form>

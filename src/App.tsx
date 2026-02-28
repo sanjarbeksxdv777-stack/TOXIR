@@ -4,13 +4,14 @@
  */
 
 import { motion, useScroll, useTransform, AnimatePresence } from 'motion/react';
-import { ArrowDown, Instagram, Send, Phone, Play, ExternalLink, ArrowUpRight, Menu, X, Check, ChevronDown, Camera, Video, Monitor, Moon, Sun, Star, Zap, Aperture, ChevronRight, Calendar } from 'lucide-react';
-import { useRef, ReactNode, FC, useState, useEffect, FormEvent } from 'react';
+import { ArrowDown, Instagram, Send, Phone, Play, ExternalLink, ArrowUpRight, Menu, X, Check, ChevronDown, Camera, Video, Monitor, Moon, Sun, Zap, Aperture } from 'lucide-react';
+import { useRef, ReactNode, FC, useState, useEffect, FormEvent, MouseEvent } from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { collection, addDoc, onSnapshot, query, orderBy, doc, getDoc, setDoc, updateDoc, increment } from 'firebase/firestore';
 import { db } from './firebase';
 import Login from './components/Login';
 import AdminPanel from './components/AdminPanel';
+import LoadingScreen from './components/LoadingScreen';
 
 // --- Interfaces ---
 
@@ -23,6 +24,27 @@ interface SiteContent {
   socialLinks: { instagram: string; telegram: string; phone: string };
   gaId?: string;
   clients?: string[];
+  sectionTitles: {
+    about: string;
+    portfolio: string;
+    services: string;
+    process: string;
+    testimonials: string;
+    faq: string;
+    contact: string;
+    equipment: string;
+  };
+  uiTexts: {
+    orderBtn: string;
+    viewWorksBtn: string;
+    contactBtn: string;
+    sendBtn: string;
+    footerText: string;
+    contactTitle: string;
+    contactSubtitle: string;
+    noProjectsTitle: string;
+    noProjectsDesc: string;
+  };
 }
 
 interface Service {
@@ -31,6 +53,7 @@ interface Service {
   desc: string;
   price: string;
   icon: string;
+  image?: string;
 }
 
 interface ProcessStep {
@@ -38,6 +61,7 @@ interface ProcessStep {
   step: string;
   title: string;
   desc: string;
+  image?: string;
 }
 
 interface EquipmentItem {
@@ -45,6 +69,7 @@ interface EquipmentItem {
   title: string;
   icon: string;
   items: string[];
+  image?: string;
 }
 
 interface Testimonial {
@@ -52,6 +77,7 @@ interface Testimonial {
   name: string;
   role: string;
   text: string;
+  image?: string;
 }
 
 interface FAQItem {
@@ -78,64 +104,104 @@ const DEFAULT_CONTENT: SiteContent = {
     telegram: "https://telegram.org",
     phone: "+998901234567"
   },
-  clients: ["Samsung", "Pepsi", "Click", "Payme", "Uzum", "Korzinka", "Murad Buildings", "Golden House"]
-};
-
-const DEFAULT_SERVICES: Service[] = [
-  { id: '1', title: "Reels Ishlab Chiqarish", desc: "Trenddagi musiqalar va dinamik montaj orqali virusli videolar.", price: "Boshlang'ich $200", icon: 'video' },
-  { id: '2', title: "Tijorat Reklamalari", desc: "Brendingizni yangi bosqichga olib chiquvchi professional roliklar.", price: "Boshlang'ich $500", icon: 'monitor' },
-  { id: '3', title: "Mahsulot Videografiyasi", desc: "Mahsulotingizning har bir detalini ochib beruvchi estetik kadrlar.", price: "Boshlang'ich $300", icon: 'camera' },
-  { id: '4', title: "Tadbirlarni Yoritish", desc: "Muhim onlarni kinematik uslubda abadiylashtirish.", price: "Boshlang'ich $400", icon: 'camera' }
-];
-
-const DEFAULT_TESTIMONIALS: Testimonial[] = [
-  { id: '1', name: "Aziz Rahimov", role: "Marketing Direktor, BrandX", text: "Tohirjon bilan ishlash juda oson. U bizning brendimizni bir qarashda tushundi va kutganimizdan ham a'lo natija berdi." },
-  { id: '2', name: "Malika Karimova", role: "Tadbirkor", text: "Reelslarimiz ko'rishlar soni 3 barobar oshdi. Kreativ yondashuv va tezkorlik uchun rahmat!" }
-];
-
-const DEFAULT_FAQ: FAQItem[] = [
-  { id: '1', q: "Videoni qancha vaqtda tayyorlab berasiz?", a: "Loyiha murakkabligiga qarab 2-5 kun ichida." },
-  { id: '2', q: "Qanday uskunalar ishlatasiz?", a: "iPhone 16 Pro Max, Sony FX3, DJI Ronin stabilizatorlari va professional yoritgichlar." },
-  { id: '3', q: "Faqat Toshkentda ishlaysizmi?", a: "Asosan Toshkentda, lekin kelishuv asosida viloyatlarga ham chiqishim mumkin." }
-];
-
-const DEFAULT_PROCESS: ProcessStep[] = [
-  { id: '1', step: "01", title: "Brifing", desc: "G'oyalarni muhokama qilish va strategiya tuzish." },
-  { id: '2', step: "02", title: "Siyomka", desc: "Professional uskunalar yordamida tasvirga olish." },
-  { id: '3', step: "03", title: "Montaj", desc: "Ranglar, ovoz va effektlar bilan ishlash." },
-  { id: '4', step: "04", title: "Natija", desc: "Tayyor videoni formatlarga moslab topshirish." }
-];
-
-const DEFAULT_EQUIPMENT: EquipmentItem[] = [
-  {
-    id: '1',
-    icon: 'camera',
-    title: "Kamera Tizimi",
-    items: ["iPhone 16 Pro Max (ProRes Log)", "Sony FX3 Cinema Line", "Sony A7S III"]
+  clients: ["Samsung", "Pepsi", "Click", "Payme", "Uzum", "Korzinka", "Murad Buildings", "Golden House"],
+  sectionTitles: {
+    about: "Haqida",
+    portfolio: "Ishlar",
+    services: "Xizmatlar",
+    process: "Ish Jarayoni",
+    testimonials: "Mijozlar Fikri",
+    faq: "Ko'p So'raladigan Savollar",
+    contact: "Bog'lanish",
+    equipment: "Ishlatiladigan Texnika"
   },
-  {
-    id: '2',
-    icon: 'zap',
-    title: "Yoritish & Stabilizatsiya",
-    items: ["DJI Ronin RS3 Pro", "Aputure 300d II", "Nanlite PavoTube II X"]
-  },
-  {
-    id: '3',
-    icon: 'aperture',
-    title: "Optika & Ovoz",
-    items: ["Sony G Master 24-70mm f/2.8", "Sennheiser MKH 416", "DJI Mic 2"]
-  },
-  {
-    id: '4',
-    icon: 'monitor',
-    title: "Post-Production",
-    items: ["MacBook Pro M3 Max", "DaVinci Resolve Studio", "Adobe After Effects"]
+  uiTexts: {
+    orderBtn: "Buyurtma Berish",
+    viewWorksBtn: "Ishlarimni Ko'rish",
+    contactBtn: "Bog'lanish",
+    sendBtn: "Yuborish",
+    footerText: "© 2026 Tohirjon Boltayev. Barcha huquqlar himoyalangan.",
+    contactTitle: "LOYIHANGIZNI\nMUHOKAMA\nQILAMIZMI?",
+    contactSubtitle: "Quyidagi havolalar orqali menga yozing yoki qo'ng'iroq qiling. 24 soat ichida javob beraman.",
+    noProjectsTitle: "Hozircha bu kategoriyada loyihalar yo'q.",
+    noProjectsDesc: "Tez orada yangi ishlar qo'shiladi."
   }
-];
+};
 
 const CATEGORIES = ["Tijorat", "Reels", "Tadbir", "Mahsulot"];
 
-// --- Komponentlar ---
+// --- Components ---
+
+const Cursor = () => {
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const mouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+
+    window.addEventListener("mousemove", mouseMove);
+
+    return () => {
+      window.removeEventListener("mousemove", mouseMove);
+    };
+  }, []);
+
+  return (
+    <>
+      <motion.div
+        className="cursor-dot fixed top-0 left-0 w-2 h-2 bg-white rounded-full pointer-events-none z-[9999] mix-blend-difference"
+        animate={{ x: mousePosition.x - 4, y: mousePosition.y - 4 }}
+        transition={{ type: "tween", ease: "backOut", duration: 0 }}
+      />
+      <motion.div
+        className="cursor-outline fixed top-0 left-0 w-8 h-8 border border-white rounded-full pointer-events-none z-[9999] mix-blend-difference"
+        animate={{ x: mousePosition.x - 16, y: mousePosition.y - 16 }}
+        transition={{ type: "spring", stiffness: 500, damping: 28 }}
+      />
+    </>
+  );
+};
+
+const ScrollToTop = () => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const toggleVisibility = () => {
+      if (window.pageYOffset > 300) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener("scroll", toggleVisibility);
+    return () => window.removeEventListener("scroll", toggleVisibility);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  };
+
+  return (
+    <AnimatePresence>
+      {isVisible && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.5 }}
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 p-4 bg-white text-black rounded-full shadow-lg z-40 hover:bg-zinc-200 transition-colors"
+        >
+          <ArrowDown className="transform rotate-180" size={24} />
+        </motion.button>
+      )}
+    </AnimatePresence>
+  );
+};
 
 function Section({ children, className = "", id = "" }: { children: ReactNode; className?: string; id?: string }) {
   return (
@@ -159,23 +225,64 @@ const FadeIn: FC<{ children: ReactNode; delay?: number; className?: string }> = 
   );
 };
 
-function Navbar({ darkMode, toggleTheme, onOpenBooking }: { darkMode: boolean; toggleTheme: () => void; onOpenBooking: () => void }) {
+const TextReveal = ({ children, className = "" }: { children: string; className?: string }) => {
+  return (
+    <div className={`overflow-hidden ${className}`}>
+      <motion.div
+        initial={{ y: "100%" }}
+        whileInView={{ y: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+      >
+        {children}
+      </motion.div>
+    </div>
+  );
+};
+
+function Navbar({ darkMode, toggleTheme, onOpenBooking, content }: { darkMode: boolean; toggleTheme: () => void; onOpenBooking: () => void; content: SiteContent }) {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState("");
 
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 50);
+      
+      const sections = document.querySelectorAll("section");
+      let current = "";
+      sections.forEach((section) => {
+        const sectionTop = section.offsetTop;
+        if (window.scrollY >= sectionTop - 200) {
+          current = section.getAttribute("id") || "";
+        }
+      });
+      setActiveSection(current);
+    };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
   const links = [
-    { name: "Asosiy", href: "#home" },
-    { name: "Haqida", href: "#about" },
-    { name: "Ishlar", href: "#portfolio" },
-    { name: "Xizmatlar", href: "#services" },
-    { name: "Jarayon", href: "#process" },
+    { name: content.sectionTitles?.about || "Asosiy", href: "#home" },
+    { name: content.sectionTitles?.about || "Haqida", href: "#about" },
+    { name: content.sectionTitles?.portfolio || "Ishlar", href: "#portfolio" },
+    { name: content.sectionTitles?.services || "Xizmatlar", href: "#services" },
+    { name: content.sectionTitles?.process || "Jarayon", href: "#process" },
   ];
+
+  const handleLinkClick = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+    e.preventDefault();
+    const targetId = href.substring(1);
+    const targetElement = document.getElementById(targetId);
+    if (targetElement) {
+      window.scrollTo({
+        top: targetElement.offsetTop,
+        behavior: "smooth"
+      });
+      setIsOpen(false);
+    }
+  };
 
   return (
     <>
@@ -187,13 +294,28 @@ function Navbar({ darkMode, toggleTheme, onOpenBooking }: { darkMode: boolean; t
         }`}
       >
         <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-          <a href="#" className={`text-2xl font-black tracking-tighter z-50 relative ${darkMode ? 'text-white' : 'text-black'}`}>TB.</a>
+          <a href="#" onClick={(e) => handleLinkClick(e, "#home")} className={`text-2xl font-black tracking-tighter z-50 relative ${darkMode ? 'text-white' : 'text-black'}`}>TB.</a>
           
           {/* Desktop Menu */}
           <div className="hidden md:flex items-center gap-8">
             {links.map(link => (
-              <a key={link.name} href={link.href} className={`text-sm font-medium transition-colors ${darkMode ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black'}`}>
+              <a 
+                key={link.name} 
+                href={link.href} 
+                onClick={(e) => handleLinkClick(e, link.href)}
+                className={`text-sm font-medium transition-colors relative ${
+                  activeSection === link.href.substring(1) 
+                    ? (darkMode ? 'text-white' : 'text-black') 
+                    : (darkMode ? 'text-zinc-400 hover:text-white' : 'text-zinc-600 hover:text-black')
+                }`}
+              >
                 {link.name}
+                {activeSection === link.href.substring(1) && (
+                  <motion.div 
+                    layoutId="activeSection" 
+                    className={`absolute -bottom-1 left-0 right-0 h-0.5 ${darkMode ? 'bg-white' : 'bg-black'}`} 
+                  />
+                )}
               </a>
             ))}
             
@@ -207,7 +329,7 @@ function Navbar({ darkMode, toggleTheme, onOpenBooking }: { darkMode: boolean; t
               onClick={onOpenBooking}
               className={`px-5 py-2 rounded-full text-sm font-bold transition-all transform hover:scale-105 ${darkMode ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'}`}
             >
-              Buyurtma Berish
+              {content.uiTexts?.orderBtn || "Buyurtma Berish"}
             </button>
           </div>
 
@@ -236,7 +358,7 @@ function Navbar({ darkMode, toggleTheme, onOpenBooking }: { darkMode: boolean; t
               <a 
                 key={link.name} 
                 href={link.href} 
-                onClick={() => setIsOpen(false)}
+                onClick={(e) => handleLinkClick(e, link.href)}
                 className="text-3xl font-bold"
               >
                 {link.name}
@@ -246,7 +368,7 @@ function Navbar({ darkMode, toggleTheme, onOpenBooking }: { darkMode: boolean; t
               onClick={() => { setIsOpen(false); onOpenBooking(); }}
               className={`mt-4 px-8 py-4 rounded-full text-lg font-bold ${darkMode ? 'bg-white text-black' : 'bg-black text-white'}`}
             >
-              Buyurtma Berish
+              {content.uiTexts?.orderBtn || "Buyurtma Berish"}
             </button>
           </motion.div>
         )}
@@ -389,24 +511,30 @@ function Home() {
   const [darkMode, setDarkMode] = useState(false);
   const [isBookingOpen, setIsBookingOpen] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Dynamic Content State
   const [content, setContent] = useState<SiteContent>(DEFAULT_CONTENT);
-  const [services, setServices] = useState<Service[]>(DEFAULT_SERVICES);
-  const [testimonials, setTestimonials] = useState<Testimonial[]>(DEFAULT_TESTIMONIALS);
-  const [faq, setFaq] = useState<FAQItem[]>(DEFAULT_FAQ);
-  const [process, setProcess] = useState<ProcessStep[]>(DEFAULT_PROCESS);
-  const [equipment, setEquipment] = useState<EquipmentItem[]>(DEFAULT_EQUIPMENT);
+  const [services, setServices] = useState<Service[]>([]);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
+  const [faq, setFaq] = useState<FAQItem[]>([]);
+  const [process, setProcess] = useState<ProcessStep[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([]);
 
   const toggleTheme = () => setDarkMode(!darkMode);
 
-  const { scrollYProgress } = useScroll({
+  const { scrollYProgress, scrollY } = useScroll({
     target: containerRef,
     offset: ["start start", "end end"]
   });
 
+  const heroY = useTransform(scrollY, [0, 500], [0, 200]);
+  const heroOpacity = useTransform(scrollY, [0, 300], [1, 0]);
+
   // Fetch Data
   useEffect(() => {
+    const timer = setTimeout(() => setLoading(false), 2000);
+
     // Projects
     const qProjects = query(collection(db, "projects"));
     const unsubscribeProjects = onSnapshot(qProjects, (snapshot) => {
@@ -423,44 +551,35 @@ function Home() {
     // Services
     const qServices = query(collection(db, "services"));
     const unsubscribeServices = onSnapshot(qServices, (snapshot) => {
-      if (!snapshot.empty) {
-        setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service)));
-      }
+      setServices(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Service)));
     });
 
     // Testimonials
     const qTestimonials = query(collection(db, "testimonials"));
     const unsubscribeTestimonials = onSnapshot(qTestimonials, (snapshot) => {
-      if (!snapshot.empty) {
-        setTestimonials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Testimonial)));
-      }
+      setTestimonials(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Testimonial)));
     });
 
     // FAQ
     const qFaq = query(collection(db, "faq"));
     const unsubscribeFaq = onSnapshot(qFaq, (snapshot) => {
-      if (!snapshot.empty) {
-        setFaq(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FAQItem)));
-      }
+      setFaq(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as FAQItem)));
     });
 
     // Process
     const qProcess = query(collection(db, "process"), orderBy("step"));
     const unsubscribeProcess = onSnapshot(qProcess, (snapshot) => {
-      if (!snapshot.empty) {
-        setProcess(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProcessStep)));
-      }
+      setProcess(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ProcessStep)));
     });
 
     // Equipment
     const qEquipment = query(collection(db, "equipment"));
     const unsubscribeEquipment = onSnapshot(qEquipment, (snapshot) => {
-      if (!snapshot.empty) {
-        setEquipment(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EquipmentItem)));
-      }
+      setEquipment(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EquipmentItem)));
     });
 
     return () => {
+      clearTimeout(timer);
       unsubscribeProjects();
       unsubscribeContent();
       unsubscribeServices();
@@ -517,7 +636,13 @@ function Home() {
 
   return (
     <div ref={containerRef} className={`${darkMode ? 'bg-black text-white selection:bg-white selection:text-black' : 'bg-white text-zinc-900 selection:bg-black selection:text-white'} min-h-screen font-sans transition-colors duration-300 overflow-x-hidden`}>
-      <Navbar darkMode={darkMode} toggleTheme={toggleTheme} onOpenBooking={() => setIsBookingOpen(true)} />
+      <AnimatePresence>
+        {loading && <LoadingScreen />}
+      </AnimatePresence>
+      <Cursor />
+      <div className="bg-noise" />
+      <ScrollToTop />
+      <Navbar darkMode={darkMode} toggleTheme={toggleTheme} onOpenBooking={() => setIsBookingOpen(true)} content={content} />
       <BookingModal isOpen={isBookingOpen} onClose={() => setIsBookingOpen(false)} darkMode={darkMode} />
       
       {/* Progress Bar */}
@@ -555,6 +680,7 @@ function Home() {
             </motion.div>
 
             <motion.h1 
+              style={{ y: heroY, opacity: heroOpacity }}
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
@@ -575,10 +701,10 @@ function Home() {
               
               <div className="flex gap-4 mt-4">
                 <a href="#portfolio" className={`px-8 py-3 rounded-full font-medium transition-colors ${darkMode ? 'bg-white text-black hover:bg-zinc-200' : 'bg-black text-white hover:bg-zinc-800'}`}>
-                  Ishlarimni ko'rish
+                  {content.uiTexts?.viewWorksBtn || "Ishlarimni ko'rish"}
                 </a>
                 <button onClick={() => setIsBookingOpen(true)} className={`px-8 py-3 border rounded-full font-medium transition-colors ${darkMode ? 'border-zinc-800 hover:bg-zinc-900' : 'border-zinc-200 hover:bg-zinc-50'}`}>
-                  Bog'lanish
+                  {content.uiTexts?.contactBtn || "Bog'lanish"}
                 </button>
               </div>
             </motion.div>
@@ -602,11 +728,11 @@ function Home() {
             <FadeIn>
               <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-8 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
                 <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-                Haqida
+                {content.sectionTitles?.about || "Haqida"}
               </h2>
-              <p className={`text-3xl md:text-4xl font-light leading-tight mb-8 ${darkMode ? 'text-zinc-200' : 'text-zinc-800'}`}>
+              <TextReveal className={`text-3xl md:text-4xl font-light leading-tight mb-8 ${darkMode ? 'text-zinc-200' : 'text-zinc-800'}`}>
                 {content.aboutText}
-              </p>
+              </TextReveal>
 
               <div className="grid grid-cols-2 gap-6">
                 {content.aboutStats.map((stat, i) => (
@@ -624,7 +750,7 @@ function Home() {
                     <Camera size={64} strokeWidth={1} />
                  </div>
                  <img 
-                   src="https://picsum.photos/seed/photographer/800/800" 
+                   src="" 
                    alt="Tohirjon Boltayev" 
                    className="w-full h-full object-cover relative z-10 mix-blend-multiply opacity-80 hover:opacity-100 transition-opacity duration-500"
                    referrerPolicy="no-referrer"
@@ -641,7 +767,7 @@ function Home() {
               <div>
                 <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-4 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
                   <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-                  Portfolio
+                  {content.sectionTitles?.portfolio || "Portfolio"}
                 </h2>
                 <h3 className={`text-4xl font-bold ${darkMode ? 'text-white' : 'text-black'}`}>So'nggi Loyihalar</h3>
               </div>
@@ -730,8 +856,8 @@ function Home() {
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full border-2 border-dashed flex items-center justify-center opacity-50 border-current">
                       <Video size={32} />
                     </div>
-                    <p className="text-lg font-medium">Hozircha bu kategoriyada loyihalar yo'q.</p>
-                    <p className="text-sm mt-2">Tez orada yangi ishlar qo'shiladi.</p>
+                    <p className="text-lg font-medium">{content.uiTexts?.noProjectsTitle || "Hozircha bu kategoriyada loyihalar yo'q."}</p>
+                    <p className="text-sm mt-2">{content.uiTexts?.noProjectsDesc || "Tez orada yangi ishlar qo'shiladi."}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -743,11 +869,16 @@ function Home() {
           <FadeIn>
             <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-16 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
               <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              Ishlatiladigan Texnika
+              {content.sectionTitles?.equipment || "Ishlatiladigan Texnika"}
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
               {equipment.map((item, i) => (
                 <div key={i} className={`p-6 rounded-2xl border ${darkMode ? 'bg-black border-zinc-800' : 'bg-white border-zinc-100'}`}>
+                  {item.image && (
+                    <div className="mb-6 rounded-xl overflow-hidden aspect-video">
+                      <img src={item.image} alt={item.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                  )}
                   <div className={`mb-4 p-3 rounded-xl inline-block ${darkMode ? 'bg-zinc-900 text-white' : 'bg-zinc-50 text-black'}`}>
                     {getIcon(item.icon)}
                   </div>
@@ -771,12 +902,18 @@ function Home() {
           <FadeIn>
             <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 mb-16 flex items-center gap-2">
               <span className="w-8 h-[1px] bg-zinc-700"></span>
-              Ish Jarayoni
+              {content.sectionTitles?.process || "Ish Jarayoni"}
             </h2>
             
             <div className="grid md:grid-cols-4 gap-8">
               {process.map((step, index) => (
-                <div key={index} className="relative">
+                <div key={index} className="relative group">
+                  {step.image && (
+                    <div className="mb-6 rounded-2xl overflow-hidden aspect-[4/3] relative">
+                      <div className="absolute inset-0 bg-black/20 group-hover:bg-transparent transition-colors duration-500" />
+                      <img src={step.image} alt={step.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                  )}
                   <div className="text-6xl font-black text-zinc-800 mb-4 opacity-50">{step.step}</div>
                   <h3 className="text-xl font-bold mb-2 text-white">{step.title}</h3>
                   <p className="text-zinc-400 text-sm leading-relaxed">{step.desc}</p>
@@ -794,12 +931,17 @@ function Home() {
           <FadeIn>
             <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-16 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
               <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              Xizmatlar
+              {content.sectionTitles?.services || "Xizmatlar"}
             </h2>
             <div className="grid md:grid-cols-2 gap-6">
               {services.map((service, index) => (
-                <div key={index} className={`group p-8 rounded-2xl border transition-all duration-300 hover:shadow-xl cursor-default flex flex-col justify-between ${darkMode ? 'bg-black border-zinc-800 hover:border-white' : 'bg-white border-zinc-100 hover:border-black'}`}>
-                  <div>
+                <div key={index} className={`group p-8 rounded-2xl border transition-all duration-300 hover:shadow-xl cursor-default flex flex-col justify-between overflow-hidden relative ${darkMode ? 'bg-black border-zinc-800 hover:border-white' : 'bg-white border-zinc-100 hover:border-black'}`}>
+                  {service.image && (
+                    <div className="absolute inset-0 z-0 opacity-0 group-hover:opacity-10 transition-opacity duration-500">
+                      <img src={service.image} alt={service.title} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                  )}
+                  <div className="relative z-10">
                     <div className="flex justify-between items-start mb-4">
                       <div className={`p-3 rounded-xl transition-colors duration-300 ${darkMode ? 'bg-zinc-900 text-white group-hover:bg-white group-hover:text-black' : 'bg-zinc-50 text-black group-hover:bg-black group-hover:text-white'}`}>
                         {getIcon(service.icon)}
@@ -809,7 +951,7 @@ function Home() {
                     <h3 className={`text-2xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-zinc-900'}`}>{service.title}</h3>
                     <p className={`mb-6 leading-relaxed ${darkMode ? 'text-zinc-400' : 'text-zinc-500'}`}>{service.desc}</p>
                   </div>
-                  <div className={`pt-6 border-t ${darkMode ? 'border-zinc-900' : 'border-zinc-50'}`}>
+                  <div className={`pt-6 border-t relative z-10 ${darkMode ? 'border-zinc-900' : 'border-zinc-50'}`}>
                     <p className={`text-sm font-medium ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>Narx: <span className={`font-bold ${darkMode ? 'text-white' : 'text-black'}`}>{service.price}</span></p>
                   </div>
                 </div>
@@ -823,7 +965,7 @@ function Home() {
           <FadeIn>
             <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-16 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
               <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              Mijozlar Fikri
+              {content.sectionTitles?.testimonials || "Mijozlar Fikri"}
             </h2>
             <div className="grid md:grid-cols-2 gap-8">
               {testimonials.map((t, i) => (
@@ -831,7 +973,11 @@ function Home() {
                   <div className={`text-4xl font-serif absolute top-4 left-6 ${darkMode ? 'text-zinc-700' : 'text-zinc-300'}`}>"</div>
                   <p className={`text-lg italic mb-6 relative z-10 pt-4 ${darkMode ? 'text-zinc-300' : 'text-zinc-700'}`}>{t.text}</p>
                   <div className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full ${darkMode ? 'bg-zinc-800' : 'bg-zinc-200'}`}></div>
+                    {t.image ? (
+                      <img src={t.image} alt={t.name} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className={`w-10 h-10 rounded-full ${darkMode ? 'bg-zinc-800' : 'bg-zinc-200'}`}></div>
+                    )}
                     <div>
                       <h4 className={`font-bold text-sm ${darkMode ? 'text-white' : 'text-black'}`}>{t.name}</h4>
                       <p className={`text-xs ${darkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>{t.role}</p>
@@ -848,7 +994,7 @@ function Home() {
           <FadeIn>
             <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-12 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
               <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              Ko'p So'raladigan Savollar
+              {content.sectionTitles?.faq || "Ko'p So'raladigan Savollar"}
             </h2>
             <div className="max-w-2xl mx-auto space-y-4">
               {faq.map((item, i) => (
@@ -871,16 +1017,16 @@ function Home() {
           <FadeIn>
             <h2 className={`text-xs font-bold uppercase tracking-[0.2em] mb-12 flex items-center gap-2 ${darkMode ? 'text-zinc-500' : 'text-zinc-400'}`}>
               <span className={`w-8 h-[1px] ${darkMode ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span>
-              Bog'lanish
+              {content.sectionTitles?.contact || "Bog'lanish"}
             </h2>
             
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
-                <h3 className={`text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] mb-8 ${darkMode ? 'text-white' : 'text-black'}`}>
-                  LOYIHANGIZNI<br/>MUHOKAMA<br/>QILAMIZMI?
+                <h3 className={`text-5xl md:text-7xl font-black tracking-tighter leading-[0.9] mb-8 ${darkMode ? 'text-white' : 'text-black'} whitespace-pre-line`}>
+                  {content.uiTexts?.contactTitle || "LOYIHANGIZNI\nMUHOKAMA\nQILAMIZMI?"}
                 </h3>
                 <p className={`text-xl mb-8 max-w-md ${darkMode ? 'text-zinc-500' : 'text-zinc-500'}`}>
-                  Quyidagi havolalar orqali menga yozing yoki qo'ng'iroq qiling. 24 soat ichida javob beraman.
+                  {content.uiTexts?.contactSubtitle || "Quyidagi havolalar orqali menga yozing yoki qo'ng'iroq qiling. 24 soat ichida javob beraman."}
                 </p>
               </div>
 
@@ -927,7 +1073,7 @@ function Home() {
             </div>
 
             <div className={`mt-32 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] uppercase tracking-widest font-bold ${darkMode ? 'border-zinc-800 text-zinc-600' : 'border-zinc-100 text-zinc-400'}`}>
-              <span>© 2026 Tohirjon Boltayev. Barcha huquqlar himoyalangan.</span>
+              <span>{content.uiTexts?.footerText || "© 2026 Tohirjon Boltayev. Barcha huquqlar himoyalangan."}</span>
               <div className="flex gap-4 items-center">
                 <a href="#" className={darkMode ? 'hover:text-white' : 'hover:text-black'}>Maxfiylik siyosati</a>
                 <a href="#" className={darkMode ? 'hover:text-white' : 'hover:text-black'}>Foydalanish shartlari</a>
